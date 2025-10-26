@@ -38,6 +38,14 @@ export const reportService = {
   },
 
   /**
+   * Public: Get recent verified reports for donor dashboard
+   */
+  getRecentPublicReports: async (limit = 6) => {
+    const response = await api.get('/reports/public/recent', { params: { limit } })
+    return response.data
+  },
+
+  /**
    * Verify report (admin only)
    */
   verifyReport: async (id, verificationData) => {

@@ -9,6 +9,7 @@ import { useAuthStore } from '../store/authStore'
 
 function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const [logoError, setLogoError] = useState(false)
   const { user, isAuthenticated, logout } = useAuthStore()
   const navigate = useNavigate()
@@ -71,19 +72,40 @@ function Navbar() {
 
             {isAuthenticated ? (
               <>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center space-x-1 text-gray-700 hover:text-primary-600 transition"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span>Logout</span>
-                </button>
-                <Link to="/profile" className="text-gray-700 hover:text-primary-600 transition">
-                  Profile
-                </Link>
-                <div className="flex items-center space-x-2 border-l pl-4">
-                  <span className="text-sm text-gray-600">{user.full_name}</span>
-                  <span className="badge badge-info text-xs">{user.role}</span>
+                {/* User dropdown */}
+                <div className="relative border-l pl-4">
+                  <button
+                    onClick={() => setIsUserMenuOpen((v) => !v)}
+                    className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 transition"
+                  >
+                    <User className="h-4 w-4" />
+                    <span className="text-sm font-medium">{user.full_name}</span>
+                    <span className="badge badge-info text-xs capitalize">{user.role}</span>
+                  </button>
+                  {isUserMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-md shadow-lg py-2 z-50">
+                      <div className="px-4 pb-2 border-b">
+                        <p className="text-sm font-medium text-gray-900 truncate">{user.full_name}</p>
+                        <p className="text-xs text-gray-500">{user.email}</p>
+                      </div>
+                      <Link
+                        to="/profile"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        <User className="h-4 w-4 mr-2" /> Profile
+                      </Link>
+                      <button
+                        onClick={() => {
+                          setIsUserMenuOpen(false)
+                          handleLogout()
+                        }}
+                        className="w-full flex items-center px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <LogOut className="h-4 w-4 mr-2" /> Logout
+                      </button>
+                    </div>
+                  )}
                 </div>
               </>
             ) : (

@@ -18,12 +18,23 @@ export default function OrphanageProfile() {
     ;(async () => {
       try {
         // Use existing state as immediate data, then refresh from API
-        const data = await orphanageService.getOrphanage(id)
+  const data = await orphanageService.getOrphanage(id)
+  const oid = String(id || data?.id || '')
         let list = []
         try {
-          list = await campaignService.getCampaigns({ orphanage_id: id, status: 'active', limit: 6 })
+          // Primary: server-side filter by orphanage id
+          list = await campaignService.getCampaigns({ orphanage_id: oid, limit: 50 })
+          // Fallback: if server filter returns empty (enum/link mismatch during dev), fetch all and filter client-side
+          if (!Array.isArray(list) || list.length === 0) {
+            const all = await campaignService.getCampaigns({ limit: 100 })
+            list = (all || []).filter((c) => String(c.orphanage_id) === oid || String(c?.orphanage?.id) === oid)
+          }
         } catch (e) {
-          // non-blocking if no campaigns
+          // Fallback on error as well
+          try {
+            const all = await campaignService.getCampaigns({ limit: 100 })
+            list = (all || []).filter((c) => String(c.orphanage_id) === oid || String(c?.orphanage?.id) === oid)
+          } catch {}
         }
         if (mounted) {
           setOrphanage(data)
@@ -85,7 +96,7 @@ export default function OrphanageProfile() {
               <div className="text-2xl font-semibold text-gray-900">{currency(totalRaised)}</div>
             </div>
             <div className="border rounded-lg p-4">
-              <div className="text-sm text-gray-500">Active Projects</div>
+              <div className="text-sm text-gray-500">Active Campaigns</div>
               <div className="text-2xl font-semibold text-gray-900">{activeCount}</div>
             </div>
           </div>
@@ -95,7 +106,7 @@ export default function OrphanageProfile() {
       {/* Tabs */}
       <div className="mt-8 flex gap-2">
         {[
-          { key: 'requests', label: 'Active Requests' },
+          { key: 'requests', label: 'Campaigns' },
           { key: 'history', label: 'Funding History' },
           { key: 'reports', label: 'Impact & Reports' },
         ].map((t) => (
@@ -112,10 +123,10 @@ export default function OrphanageProfile() {
       </div>
 
       {/* Tab Content */}
-      {tab === 'requests' && (
+        {tab === 'requests' && (
         <div className="mt-6 space-y-6">
           {campaigns.length === 0 && (
-            <div className="text-gray-600">No active requests listed yet.</div>
+            <div className="text-gray-600">No campaigns listed yet.</div>
           )}
           {campaigns.map((p) => {
             const goal = p.target_amount || 0
@@ -125,7 +136,10 @@ export default function OrphanageProfile() {
               <div key={p.id} className="card">
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="text-xs inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 capitalize">{String(p.category || '').toLowerCase()}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 capitalize">{String(p.category || '').toLowerCase()}</span>
+                      <span className="text-xs inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 capitalize">{String(p.status || '').toLowerCase()}</span>
+                    </div>
                     <h3 className="text-lg font-semibold text-gray-900 mt-1">{p.title}</h3>
                   </div>
                   <div className="text-right">
@@ -144,8 +158,12 @@ export default function OrphanageProfile() {
                   </div>
                 </div>
                 <div className="mt-4 flex gap-3">
-                  <Link to={`/donate/${id}/${p.id}`} className="btn btn-primary">Donate Now</Link>
-                  <Link to={`/campaigns/${p.id}`} className="btn btn-outline">View Utilisation Reports</Link>
+                  {String(p.status || '').toLowerCase() === 'active' ? (
+                    <Link to={`/donate/${id}/${p.id}`} className="btn btn-primary">Donate Now</Link>
+                  ) : (
+                    <button className="btn btn-disabled" disabled>Not open for donations</button>
+                  )}
+                  <Link to={`/campaigns/${p.id}`} className="btn btn-outline">Details & Reports</Link>
                 </div>
               </div>
             )

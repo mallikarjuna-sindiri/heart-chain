@@ -8,7 +8,8 @@ from beanie import PydanticObjectId
 from datetime import datetime
 
 from app.models.campaign import Campaign, CampaignStatus, CampaignCategory
-from app.models.orphanage import Orphanage
+from enum import Enum
+from app.models.orphanage import Orphanage, OrphanageStatus
 from app.core.security import get_current_user_token
 
 router = APIRouter()
@@ -18,7 +19,7 @@ router = APIRouter()
 async def create_campaign(
     title: str,
     description: str,
-    category: CampaignCategory,
+    category: CampaignCategory | str,
     target_amount: float,
     end_date: Optional[datetime] = None,
     token_data: Dict = Depends(get_current_user_token)
@@ -30,21 +31,39 @@ async def create_campaign(
     user_id = token_data.get("sub")
     orphanage = await Orphanage.find_one(Orphanage.user.id == PydanticObjectId(user_id))
     
-    if not orphanage or orphanage.status != "verified":
+    # Ensure orphanage exists and is verified (handle Enum safely)
+    if not orphanage:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Orphanage must be verified")
+    orphan_status = getattr(orphanage.status, "value", orphanage.status)
+    if orphan_status != OrphanageStatus.VERIFIED.value:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Orphanage must be verified")
     
-    campaign = Campaign(
-        title=title,
-        description=description,
-        category=category,
-        target_amount=target_amount,
-        end_date=end_date,
-        orphanage=orphanage,
-        status=CampaignStatus.PENDING_APPROVAL
-    )
-    await campaign.insert()
-    
-    return {"id": str(campaign.id), "message": "Campaign created successfully"}
+    # Normalize category if passed as a string
+    try:
+        if isinstance(category, str):
+            category = CampaignCategory(category)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid category")
+
+    # Auto-activate campaigns created by a verified orphanage — orphanage itself is recorded as approver
+    try:
+        campaign = Campaign(
+            title=title,
+            description=description,
+            category=category,  # type: ignore[arg-type]
+            target_amount=target_amount,
+            end_date=end_date,
+            orphanage=orphanage,
+            status=CampaignStatus.ACTIVE,
+            approved_at=datetime.utcnow(),
+            # Use current user id as approver to avoid dereferencing Link objects
+            approved_by=str(user_id),
+        )
+        await campaign.insert()
+        return {"id": str(campaign.id), "message": "Campaign created successfully"}
+    except Exception as e:
+        # Surface detailed error to client for debugging during development
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to create campaign: {str(e)}")
 
 
 @router.get("/")
@@ -59,16 +78,20 @@ async def list_campaigns(
 
     Optional orphanage_id filter enables showing campaigns on a specific orphanage's public profile.
     """
-    query = {}
+    # Build expression-based filters to avoid enum/link serialization pitfalls
+    expr = None
     if status:
-        query["status"] = status
+        cond = (Campaign.status == status)
+        expr = cond if expr is None else (expr & cond)
     if category:
-        query["category"] = category
+        cond = (Campaign.category == category)
+        expr = cond if expr is None else (expr & cond)
     if orphanage_id:
         from beanie import PydanticObjectId
-        query["orphanage"] = PydanticObjectId(orphanage_id)
-    
-    campaigns = await Campaign.find(query).skip(skip).limit(limit).to_list()
+        cond = (Campaign.orphanage.id == PydanticObjectId(orphanage_id))
+        expr = cond if expr is None else (expr & cond)
+
+    campaigns = await Campaign.find(expr or {}).skip(skip).limit(limit).to_list()
     
     result = []
     for c in campaigns:
@@ -77,14 +100,51 @@ async def list_campaigns(
             "id": str(c.id),
             "title": c.title,
             "description": c.description,
-            "category": c.category,
+            "category": c.category.value if isinstance(c.category, Enum) else c.category,
             "target_amount": c.target_amount,
             "raised_amount": c.raised_amount,
-            "status": c.status,
+            "status": c.status.value if isinstance(c.status, Enum) else c.status,
             "orphanage_name": c.orphanage.name if c.orphanage else None,
+            "orphanage_id": str(c.orphanage.id) if c.orphanage else None,
             "created_at": c.created_at.isoformat()
         })
     
+    return result
+
+
+@router.get("/public/active")
+async def list_public_active_campaigns(
+    limit: int = Query(default=20, le=100),
+    skip: int = Query(default=0, ge=0)
+):
+    """Public: List active campaigns only (no auth required).
+
+    Uses Beanie field comparisons to avoid enum serialization pitfalls and returns
+    normalized primitive values to the client.
+    """
+    campaigns = (
+        await Campaign
+        .find(Campaign.status == CampaignStatus.ACTIVE)
+        .skip(skip)
+        .limit(limit)
+        .to_list()
+    )
+
+    result = []
+    for c in campaigns:
+        await c.fetch_link(Campaign.orphanage)
+        result.append({
+            "id": str(c.id),
+            "title": c.title,
+            "description": c.description,
+            "category": getattr(c.category, "value", c.category),
+            "target_amount": c.target_amount,
+            "raised_amount": c.raised_amount,
+            "status": getattr(c.status, "value", c.status),
+            "orphanage_name": c.orphanage.name if c.orphanage else None,
+            "orphanage_id": str(c.orphanage.id) if c.orphanage else None,
+            "created_at": c.created_at.isoformat(),
+        })
     return result
 
 
@@ -165,8 +225,9 @@ async def update_campaign(
     
     await campaign.fetch_link(Campaign.orphanage)
     user_id = token_data.get("sub")
-    
-    if str(campaign.orphanage.user.id) != user_id:
+    # Fetch the current user's orphanage and compare IDs to avoid dereferencing nested Link objects
+    owner_orphanage = await Orphanage.find_one(Orphanage.user.id == PydanticObjectId(user_id))
+    if not owner_orphanage or str(campaign.orphanage.id) != str(owner_orphanage.id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
     
     if title:
@@ -195,8 +256,9 @@ async def delete_campaign(
     
     await campaign.fetch_link(Campaign.orphanage)
     user_id = token_data.get("sub")
-    
-    if str(campaign.orphanage.user.id) != user_id and token_data.get("role") != "admin":
+    # Compare orphanage ownership without accessing nested Link fields
+    owner_orphanage = await Orphanage.find_one(Orphanage.user.id == PydanticObjectId(user_id))
+    if (not owner_orphanage or str(campaign.orphanage.id) != str(owner_orphanage.id)) and token_data.get("role") != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
     
     await campaign.delete()

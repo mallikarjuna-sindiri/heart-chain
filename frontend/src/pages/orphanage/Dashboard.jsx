@@ -105,7 +105,7 @@ export default function OrphanageDashboard() {
           icon={TrendingUp}
           title="Active Campaign Progress"
           value={loading ? '—' : `${summary.stats?.average_progress ?? 0}%`}
-          subtitle="Average across all projects"
+          subtitle="Average across all campaigns"
           iconBg="bg-indigo-50"
           iconColor="text-indigo-600"
         />
@@ -136,7 +136,7 @@ export default function OrphanageDashboard() {
       <div className="mt-8">
         <div className="flex items-center gap-2 text-sm">
           {[
-            { key: 'projects', label: 'Active Projects' },
+            { key: 'projects', label: 'Active Campaigns' },
             { key: 'donations', label: 'Recent Donations' },
             { key: 'documents', label: 'Reports & Documents' },
           ].map((t) => (
@@ -163,7 +163,7 @@ export default function OrphanageDashboard() {
                     <div className="flex items-start justify-between">
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">{p.title}</h3>
-                        <p className="mt-1 text-sm text-gray-500">{p.total_donors || 0} donors supporting this project</p>
+                        <p className="mt-1 text-sm text-gray-500">{p.total_donors || 0} donors supporting this campaign</p>
                       </div>
                       <button className="btn btn-outline flex items-center gap-2" onClick={() => navigate(`/orphanage/reports/create?campaignId=${p.id}`)}>
                         <Upload className="h-4 w-4" /> Update Report

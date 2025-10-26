@@ -41,6 +41,8 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
+    # In development, allow LAN IP origins like http://192.168.x.x:5173
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|(?:[0-9]{1,3}\.){3}[0-9]{1,3})(:\d+)?$" if settings.ENVIRONMENT == "development" else None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

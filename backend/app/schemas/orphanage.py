@@ -41,6 +41,7 @@ class OrphanageUpdate(BaseModel):
     pincode: Optional[str] = None
     capacity: Optional[int] = None
     current_occupancy: Optional[int] = None
+    logo: Optional[str] = None
 
 
 class OrphanageResponse(BaseModel):

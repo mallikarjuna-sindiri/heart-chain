@@ -185,3 +185,41 @@ async def list_reports(
         })
     
     return result
+
+
+@router.get("/public/recent")
+async def list_recent_public_reports(limit: int = 6):
+    """Public: list recent verified reports to showcase activities/impact on donor dashboard"""
+    reports = (
+        await Report
+        .find({"status": ReportStatus.VERIFIED})
+        .sort("-submitted_at")
+        .limit(limit)
+        .to_list()
+    )
+
+    result = []
+    for r in reports:
+        try:
+            await r.fetch_link(Report.campaign)
+            await r.fetch_link(Report.orphanage)
+        except Exception:
+            pass
+        result.append({
+            "id": str(r.id),
+            "title": r.title,
+            "report_type": r.report_type,
+            "amount_utilized": r.amount_utilized,
+            "beneficiaries_count": r.beneficiaries_count,
+            "submitted_at": r.submitted_at.isoformat() if r.submitted_at else None,
+            "orphanage": {
+                "id": str(r.orphanage.id) if getattr(r, "orphanage", None) else None,
+                "name": getattr(getattr(r, "orphanage", None), "name", None),
+                "city": getattr(getattr(r, "orphanage", None), "city", None),
+            },
+            "campaign": {
+                "id": str(r.campaign.id) if getattr(r, "campaign", None) else None,
+                "title": getattr(getattr(r, "campaign", None), "title", None),
+            },
+        })
+    return result

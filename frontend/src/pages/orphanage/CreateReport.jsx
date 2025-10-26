@@ -80,9 +80,9 @@ export default function CreateReport() {
 
       <form onSubmit={handleSubmit} className="card space-y-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Project (Campaign)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Campaign</label>
           <select name="campaign_id" className="input" value={form.campaign_id} onChange={handleChange} required>
-            <option value="" disabled>Select a project…</option>
+            <option value="" disabled>Select a campaign…</option>
             {(campaigns || []).map((c) => (
               <option key={c.id} value={c.id}>{c.title}</option>
             ))}

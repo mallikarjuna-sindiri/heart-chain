@@ -5,7 +5,12 @@
 import axios from 'axios'
 import toast from 'react-hot-toast'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+// Prefer explicit VITE_API_URL; otherwise build a sensible default from current host
+let API_URL = import.meta.env.VITE_API_URL
+if (!API_URL || API_URL === 'http://localhost:8000/api') {
+  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
+  API_URL = `http://${host}:8000/api`
+}
 
 // Create axios instance
 const api = axios.create({

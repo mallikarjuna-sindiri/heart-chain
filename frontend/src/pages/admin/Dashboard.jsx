@@ -99,7 +99,7 @@ export default function AdminDashboard() {
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="text-gray-600 mt-2">Review verifications, approve campaigns, verify reports, and handle disbursements.</p>
+        <p className="text-gray-600 mt-2">Review orphanage verifications, verify reports, and handle disbursements.</p>
       </div>
 
       {/* KPI Row */}
@@ -124,13 +124,7 @@ export default function AdminDashboard() {
           subtitle="Review and verify new registrations"
           badge={`${pending.orphanages} pending`}
         />
-        <Action
-          to="/admin/campaigns"
-          icon={Workflow}
-          title="Approve Campaigns"
-          subtitle="Review and approve pending campaigns"
-          badge={`${pending.campaigns} pending`}
-        />
+        {/* Approve Campaigns removed: orphanage campaigns are auto-published; admin verifies orphanages and reports */}
         <Action
           to="/admin/reports"
           icon={FileCheck2}

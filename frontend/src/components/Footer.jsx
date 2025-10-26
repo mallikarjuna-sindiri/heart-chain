@@ -24,18 +24,21 @@ function Footer() {
           <div>
             <h3 className="text-white font-semibold mb-4">Quick Links</h3>
             <ul className="space-y-2 text-sm">
+              <li><Link to="/" className="hover:text-primary-500 transition">Home</Link></li>
               <li><Link to="/orphanages" className="hover:text-primary-500 transition">Orphanages</Link></li>
+              <li><Link to="/campaigns" className="hover:text-primary-500 transition">Campaigns</Link></li>
+              <li><Link to="/how-it-works" className="hover:text-primary-500 transition">How It Works</Link></li>
               <li><Link to="/about" className="hover:text-primary-500 transition">About Us</Link></li>
-              <li><Link to="/register" className="hover:text-primary-500 transition">Get Started</Link></li>
             </ul>
           </div>
 
-          {/* For Organizations */}
+          {/* Explore */}
           <div>
-            <h3 className="text-white font-semibold mb-4">For Organizations</h3>
+            <h3 className="text-white font-semibold mb-4">Explore</h3>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/register" className="hover:text-primary-500 transition">Register Orphanage</Link></li>
-              <li><Link to="/login" className="hover:text-primary-500 transition">Login</Link></li>
+              <li><Link to="/orphanages" className="hover:text-primary-500 transition">Verified Orphanages</Link></li>
+              <li><Link to="/campaigns" className="hover:text-primary-500 transition">Active Campaigns</Link></li>
+              <li><Link to="/how-it-works" className="hover:text-primary-500 transition">For Donors</Link></li>
             </ul>
           </div>
 

@@ -14,6 +14,14 @@ export const campaignService = {
   },
 
   /**
+   * Public: Get active campaigns only
+   */
+  getActiveCampaigns: async (params = {}) => {
+    const response = await api.get('/campaigns/public/active', { params })
+    return response.data
+  },
+
+  /**
    * Get campaign by ID
    */
   getCampaign: async (id) => {
